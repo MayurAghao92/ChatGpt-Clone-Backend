@@ -7,3 +7,5 @@ async function connectDB(){
      console.log("Error in DB connection", err);
    }
 }
+
+export default connectDB;
