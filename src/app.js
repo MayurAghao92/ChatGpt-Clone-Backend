@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 
 const app = express();
+
 app.use(express.json());
 app.use(cookieParser());
 
