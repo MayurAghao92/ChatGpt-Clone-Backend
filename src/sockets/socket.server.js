@@ -2,11 +2,12 @@ import { Server } from "socket.io";
 import cookie from 'cookie';
 import userModel from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
+import generateAIResponse from "../services/ai.service.js";
 
-function setupSocketServer(httpServer) {
+ function setupSocketServer(httpServer) {
     const io = new Server(httpServer, {});
 
-    io.use((socket, next) => {
+    io.use(async(socket, next) => {
         const cookies=cookie.parse(socket.handshake.headers?.cookie ||'');
 
         if(!cookies.token){
@@ -15,7 +16,7 @@ function setupSocketServer(httpServer) {
 
         try{
             const decoded=jwt.verify(cookies.token,process.env.JWT_SECRET);
-            const user=userModel.findById(decoded.id);
+            const user=await userModel.findById(decoded.id);
             socket.user=user;
             next();
         }catch(err){
@@ -31,8 +32,14 @@ function setupSocketServer(httpServer) {
             console.log("A user disconnected:", socket.id);
         });
 
-        socket.on("ai-message", (messsagePayload) => {
+        socket.on("ai-message", async(messsagePayload) => {
             console.log("Message received:", messsagePayload);
+
+            const response=await generateAIResponse(messsagePayload.message);
+            socket.emit("ai-response", {
+                content: response,
+                chat: messsagePayload.chat
+            })
         });
     });
 }
