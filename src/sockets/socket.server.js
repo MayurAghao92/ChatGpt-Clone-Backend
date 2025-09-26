@@ -4,6 +4,7 @@ import userModel from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import generateAIResponse from "../services/ai.service.js";
 import messageModel from "../models/messages.model.js";
+import { queryMemory,createMemory } from "../services/vector.service.js";
 
 function setupSocketServer(httpServer) {
   const io = new Server(httpServer, {});
