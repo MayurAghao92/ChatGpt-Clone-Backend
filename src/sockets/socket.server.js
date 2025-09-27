@@ -30,82 +30,100 @@ function setupSocketServer(httpServer) {
     console.log("A user connected:", socket.id);
 
     socket.on("ai-message", async (messsagePayload) => {
-      const requestMessage = await messageModel.create({
+      /*const requestMessage = await messageModel.create({
         user: socket.user._id,
         chat: messsagePayload.chat,
         content: messsagePayload.message,
         role: "user",
       });
 
-      const requestVector = await generateVector(messsagePayload.message);
+      const requestVector = await generateVector(messsagePayload.message);*/
 
-      const memory=await queryMemory({
-       queryVector:requestVector,
-        limit:3,
-        metadata:{}
-      })
-
-      await createMemory({
-        vectors:requestVector,
-        messageId: requestMessage._id,
-        metadata: {
-          chat: messsagePayload.chat,
+      const [requestMessage, requestVector] = await Promise.all([
+        messageModel.create({
           user: socket.user._id,
-          text:messsagePayload.message,
-        },
-      });
+          chat: messsagePayload.chat,
+          content: messsagePayload.message,
+          role: "user",
+        }),
+        generateVector(messsagePayload.message),
+        createMemory({
+          vectors: requestVector,
+          messageId: requestMessage._id,
+          metadata: {
+            chat: messsagePayload.chat,
+            user: socket.user._id,
+            text: messsagePayload.message,
+          },
+        }),
+      ]);
 
-      
-      console.log("Memory:",memory);
+      const [memory, chatHistory] = await Promise.all([
+        queryMemory({
+          queryVector: requestVector,
+          limit: 3,
+          metadata: {
+            user: socket.user._id,
+          },
+        }),
 
-      const chatHistory = (
-        await messageModel
+        messageModel
           .find({
             chat: messsagePayload.chat,
           })
           .sort({ createdAt: -1 })
           .limit(10)
           .lean()
-      ).reverse();
+          .then((messages) => messages.reverse()),
+      ]);
 
-      const stm= chatHistory.map((item) => {
-          return {
-            role: item.role,
-            parts: [{ text: item.content }],
-          };
-        });
-
-        const ltm=[
-          {
-            role:"system",
-            
-          }
-        ]
-
-      const response = await generateAIResponse( );
-
-      const responseMessage=await messageModel.create({
-        user: socket.user._id,
-        chat: messsagePayload.chat,
-        content: response,
-        role: "model",
+      const stm = chatHistory.map((item) => {
+        return {
+          role: item.role,
+          parts: [{ text: item.content }],
+        };
       });
 
-      const responseVector=await generateVector(response);
-
-      await createMemory({
-        vectors:responseVector,
-        messageId: responseMessage._id,
-         metadata:{
-          chat: messsagePayload.chat,
-          user: socket.user._id,
-          text:response,
+      const ltm = [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `These are previous relevant messages from the conversation memory to help you respond better:
+              ${memory.map((item) => item.metadata.text).join("\n")}`,
+            },
+          ],
         },
-      })
+      ];
+
+      console.log(ltm[0]);
+      console.log(stm);
+      const response = await generateAIResponse([...ltm, ...stm]);
 
       socket.emit("ai-response", {
         content: response,
         chat: messsagePayload.chat,
+      });
+
+      const [ responseMessage, responseVector ]= await Promise.all([
+        messageModel.create({
+        user: socket.user._id,
+        chat: messsagePayload.chat,
+        content: response,
+        role: "model",
+      }),
+
+      generateVector(response),
+     ])
+
+      await createMemory({
+        vectors: responseVector,
+        messageId: responseMessage._id,
+        metadata: {
+          chat: messsagePayload.chat,
+          user: socket.user._id,
+          text: response,
+        },
       });
     });
   });
