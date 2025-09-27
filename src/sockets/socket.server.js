@@ -47,16 +47,17 @@ function setupSocketServer(httpServer) {
           role: "user",
         }),
         generateVector(messsagePayload.message),
-        createMemory({
+      ]);
+
+      await createMemory({
           vectors: requestVector,
           messageId: requestMessage._id,
           metadata: {
             chat: messsagePayload.chat,
             user: socket.user._id,
             text: messsagePayload.message,
-          },
-        }),
-      ]);
+          }
+        });
 
       const [memory, chatHistory] = await Promise.all([
         queryMemory({
@@ -64,7 +65,7 @@ function setupSocketServer(httpServer) {
           limit: 3,
           metadata: {
             user: socket.user._id,
-          },
+          }
         }),
 
         messageModel
