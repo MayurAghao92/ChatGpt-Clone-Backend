@@ -2,9 +2,9 @@ import { Server } from "socket.io";
 import cookie from "cookie";
 import userModel from "../models/user.model.js";
 import jwt from "jsonwebtoken";
-import generateAIResponse from "../services/ai.service.js";
+import { generateAIResponse, generateVector } from "../services/ai.service.js";
 import messageModel from "../models/messages.model.js";
-import { queryMemory,createMemory } from "../services/vector.service.js";
+import { queryMemory, createMemory } from "../services/vector.service.js";
 
 function setupSocketServer(httpServer) {
   const io = new Server(httpServer, {});
@@ -30,13 +30,33 @@ function setupSocketServer(httpServer) {
     console.log("A user connected:", socket.id);
 
     socket.on("ai-message", async (messsagePayload) => {
-
-      await messageModel.create({
+      const requestMessage = await messageModel.create({
         user: socket.user._id,
         chat: messsagePayload.chat,
         content: messsagePayload.message,
         role: "user",
       });
+
+      const requestVector = await generateVector(messsagePayload.message);
+
+      const memory=await queryMemory({
+       queryVector:requestVector,
+        limit:3,
+        metadata:{}
+      })
+
+      await createMemory({
+        vectors:requestVector,
+        messageId: requestMessage._id,
+        metadata: {
+          chat: messsagePayload.chat,
+          user: socket.user._id,
+          text:messsagePayload.message,
+        },
+      });
+
+      
+      console.log("Memory:",memory);
 
       const chatHistory = (
         await messageModel
@@ -48,21 +68,40 @@ function setupSocketServer(httpServer) {
           .lean()
       ).reverse();
 
-      const response = await generateAIResponse(
-        chatHistory.map(msg => {
+      const stm= chatHistory.map((item) => {
           return {
-            role: msg.role,
-            parts: [{ text: msg.content }],
+            role: item.role,
+            parts: [{ text: item.content }],
           };
-        })
-      );
+        });
 
-      await messageModel.create({
+        const ltm=[
+          {
+            role:"system",
+            
+          }
+        ]
+
+      const response = await generateAIResponse( );
+
+      const responseMessage=await messageModel.create({
         user: socket.user._id,
         chat: messsagePayload.chat,
         content: response,
         role: "model",
       });
+
+      const responseVector=await generateVector(response);
+
+      await createMemory({
+        vectors:responseVector,
+        messageId: responseMessage._id,
+         metadata:{
+          chat: messsagePayload.chat,
+          user: socket.user._id,
+          text:response,
+        },
+      })
 
       socket.emit("ai-response", {
         content: response,

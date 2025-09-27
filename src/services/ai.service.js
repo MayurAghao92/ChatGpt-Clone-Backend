@@ -24,8 +24,8 @@ async function generateVector(content){
       outputDimensionality:768
     }
   })
-  return response.embedding;
+  return response.embeddings[0].values;
 }
 
 
-export {generateAIResponse,generateVector}; ;
+export {generateAIResponse,generateVector}; 

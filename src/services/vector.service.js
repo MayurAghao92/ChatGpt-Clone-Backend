@@ -4,10 +4,10 @@ const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 
 const index = pc.Index('chatgpt-clone');
 
-async function createMemory ({vector, metadata, messageId}) {
+async function createMemory ({vectors, metadata, messageId}) {
   await index.upsert([{
-    id:messagesValidation,
-    values: vector,
+    id:messageId,
+    values: vectors,
     metadata: metadata  
   }]);
 }
