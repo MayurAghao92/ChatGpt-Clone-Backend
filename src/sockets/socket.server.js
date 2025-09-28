@@ -30,15 +30,7 @@ function setupSocketServer(httpServer) {
     console.log("A user connected:", socket.id);
 
     socket.on("ai-message", async (messsagePayload) => {
-      /*const requestMessage = await messageModel.create({
-        user: socket.user._id,
-        chat: messsagePayload.chat,
-        content: messsagePayload.message,
-        role: "user",
-      });
-
-      const requestVector = await generateVector(messsagePayload.message);*/
-
+    
       const [requestMessage, requestVector] = await Promise.all([
         messageModel.create({
           user: socket.user._id,
