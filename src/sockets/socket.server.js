@@ -7,7 +7,12 @@ import messageModel from "../models/messages.model.js";
 import { queryMemory, createMemory } from "../services/vector.service.js";
 
 function setupSocketServer(httpServer) {
-  const io = new Server(httpServer, {});
+ const io = new Server(httpServer, {
+  cors: {
+    origin: 'http://localhost:5173',
+    credentials: true,
+  },
+});
 
   io.use(async (socket, next) => {
     const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
@@ -89,8 +94,7 @@ function setupSocketServer(httpServer) {
         },
       ];
 
-      console.log(ltm[0]);
-      console.log(stm);
+      
       const response = await generateAIResponse([...ltm, ...stm]);
 
       socket.emit("ai-response", {
