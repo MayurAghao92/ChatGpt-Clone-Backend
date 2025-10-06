@@ -34,25 +34,25 @@ function setupSocketServer(httpServer) {
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("ai-message", async (messsagePayload) => {
+    socket.on("ai-message", async (messagePayload) => {
     
       const [requestMessage, requestVector] = await Promise.all([
         messageModel.create({
           user: socket.user._id,
-          chat: messsagePayload.chat,
-          content: messsagePayload.message,
+          chat: messagePayload.chat,
+          content: messagePayload.message,
           role: "user",
         }),
-        generateVector(messsagePayload.message),
+        generateVector(messagePayload.message),
       ]);
 
       await createMemory({
           vectors: requestVector,
           messageId: requestMessage._id,
           metadata: {
-            chat: messsagePayload.chat,
+            chat: messagePayload.chat,
             user: socket.user._id,
-            text: messsagePayload.message,
+            text: messagePayload.message,
           }
         });
 
@@ -67,7 +67,7 @@ function setupSocketServer(httpServer) {
 
         messageModel
           .find({
-            chat: messsagePayload.chat,
+            chat: messagePayload.chat,
           })
           .sort({ createdAt: -1 })
           .limit(10)
@@ -99,13 +99,13 @@ function setupSocketServer(httpServer) {
 
       socket.emit("ai-response", {
         content: response,
-        chat: messsagePayload.chat,
+        chat: messagePayload.chat,
       });
 
       const [ responseMessage, responseVector ]= await Promise.all([
         messageModel.create({
         user: socket.user._id,
-        chat: messsagePayload.chat,
+        chat: messagePayload.chat,
         content: response,
         role: "model",
       }),
@@ -117,7 +117,7 @@ function setupSocketServer(httpServer) {
         vectors: responseVector,
         messageId: responseMessage._id,
         metadata: {
-          chat: messsagePayload.chat,
+          chat: messagePayload.chat,
           user: socket.user._id,
           text: response,
         },
